@@ -1,0 +1,8 @@
+title: cava
+description: Console-based Audio Visualizer for Alsa, MPD and Pulseaudio
+google_analytics: 
+show_downloads: true
+theme: jekyll-theme-hacker
+
+gems:
+  - jekyll-mentions
