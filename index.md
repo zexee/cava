@@ -7,6 +7,17 @@ by [Karl Stavestrand](mailto:karl@stavestrand.no)
 
 ![spectrum](https://raw.githubusercontent.com/karlstav/cava/gh-pages/cava_rainbow.gif "spectrum")
 
+# 2017-04-26 - 0.4.3
+new features:
+
+* support for more colors in ncurses output.
+
+bugfixes:
+
+* fixed bug where sensing of low values was done even when no sound
+* fixed bug in raw output bit format check
+* adde a check for too many bars >200
+
 # 2016-09-24 - 0.4.2
 new features:
 
