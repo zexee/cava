@@ -7,6 +7,27 @@ by [Karl Stavestrand](mailto:karl@stavestrand.no)
 
 ![spectrum](https://raw.githubusercontent.com/karlstav/cava/gh-pages/cava_rainbow.gif "spectrum")
 
+# 2017-08-26 - 0.6.0
+new features:
+
+* Autosens of low values (dynamic range)
+* Removed config parameter 'overshoot'
+* Removed config parameter 'mode'
+* New config parameter 'waves'
+* Changed config parameter 'style' to 'channels' (was either 'mono' or 'stereo' anyway)
+* Parameters 'integral' and 'gravity' are now in percentage
+
+# 2017-08-14 - 0.5.0
+new features:
+
+* gradient
+
+bugfixes:
+
+* memory leak
+* increased config reload speed
+* raw output not goint to /dev/stdout
+
 # 2017-04-26 - 0.4.3
 new features:
 
