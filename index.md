@@ -1,10 +1,3 @@
-C.A.V.A.
-====================
-
-**C**onsole-based **A**udio **V**isualizer for **A**LSA
-
-Also supports audio input from Pulseaudio, fifo (mpd), sndio and squeezelite.
-
 by [Karl Stavestrand](mailto:karl@stavestrand.no)
 
 ![spectrum](https://raw.githubusercontent.com/karlstav/cava/gh-pages/cava_rainbow.gif "spectrum")
