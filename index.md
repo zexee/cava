@@ -1,11 +1,29 @@
-C.A.V.A. (M.P.)
+C.A.V.A.
 ====================
 
-**C**onsole-based **A**udio **V**isualizer for **A**LSA (**M**PD and **P**ulseaudio)
+**C**onsole-based **A**udio **V**isualizer for **A**LSA
+
+Also supports audio input from Pulseaudio, fifo (mpd), sndio and squeezelite.
 
 by [Karl Stavestrand](mailto:karl@stavestrand.no)
 
 ![spectrum](https://raw.githubusercontent.com/karlstav/cava/gh-pages/cava_rainbow.gif "spectrum")
+
+# 2018-05-05 - 0.6.1
+new features:
+
+* sndio backend
+
+bug fixes:
+
+* Fix fftw_complex usage, drastically improving visualization
+* better cleanup and exiting
+* added a check to see if pulseaudio is running
+* fixed bug preventing color in noncurses mode from working
+* Fix build errors and warnings if not using ncurses
+
+Generally improved fifo input and raw output
+
 
 # 2017-08-26 - 0.6.0
 new features:
