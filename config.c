@@ -211,7 +211,7 @@ if (strcmp(outputMethod, "raw") == 0) {//raw:
 			"bit format  %d is not supported, supported data formats are: '8' and '16'\n",
 						p->bit_format );
 		return false;
-	
+
 		}
 	} else if (strcmp(p->data_format, "ascii") == 0) {
 		p->is_bin = 0;
@@ -224,11 +224,14 @@ if (strcmp(outputMethod, "raw") == 0) {//raw:
 		"data format %s is not supported, supported data formats are: 'binary' and 'ascii'\n",
 					p->data_format);
 	return false;
-	
+
 	}
 
 
 
+}
+if (strcmp(outputMethod, "serial") == 0) {
+  p->om = 5;
 }
 if (p->om == 0) {
 	#ifndef NCURSES
@@ -243,7 +246,7 @@ if (p->om == 0) {
                 "output method %s is not supported, supported methods are: 'ncurses' and 'noncurses'\n",
                                         outputMethod);
         return false;
-	#endif	
+	#endif
 }
 
 // validate: output channels
@@ -321,7 +324,7 @@ if (p->FFTbufferSize >= 8 && p->FFTbufferSize <= 16) {
 } else {
 	write_errorf(error,
 		"FFT buffer is set in the exponent of 2 and must be between 8 - 16\n");
-	return false;	
+	return false;
 }
 
 
@@ -366,7 +369,7 @@ bool load_config(char configPath[255], char supportedInput[255], void* params, b
 struct config_params *p = (struct config_params *)params;
 struct error_s *error = (struct error_s *)err;
 FILE *fp;
-	
+
 //config: creating path to default config file
 if (configPath[0] == '\0') {
 	char *configFile = "config";
@@ -388,7 +391,7 @@ if (configPath[0] == '\0') {
 
 	// config: adding default filename file
 	strcat(configPath, configFile);
-	
+
 	fp = fopen(configPath, "ab+");
 	if (fp) {
 		fclose(fp);
@@ -400,7 +403,7 @@ if (configPath[0] == '\0') {
 
 } else { //opening specified file
 
-	fp = fopen(configPath, "rb+");	
+	fp = fopen(configPath, "rb+");
 	if (fp) {
 		fclose(fp);
 	} else {
@@ -459,7 +462,7 @@ p->autosens = iniparser_getint(ini, "general:autosens", 1);
 p->overshoot = iniparser_getint(ini, "general:overshoot", 20);
 p->lowcf = iniparser_getint(ini, "general:lower_cutoff_freq", 50);
 p->highcf = iniparser_getint(ini, "general:higher_cutoff_freq", 10000);
-p->FFTbufferSize = iniparser_getint(ini, "general:FFTbufferSize", 12); 
+p->FFTbufferSize = iniparser_getint(ini, "general:FFTbufferSize", 12);
 
 // config: output
 channels =  (char *)iniparser_getstring(ini, "output:channels", "stereo");

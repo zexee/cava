@@ -44,6 +44,8 @@
 #include "output/raw.h"
 #include "output/raw.c"
 
+#include "output/serial.h"
+#include "output/serial.c"
 
 #include "input/fifo.h"
 #include "input/fifo.c"
@@ -85,9 +87,9 @@
 
 
 
-//used by sig handler 
+//used by sig handler
 //needs to know output mode in orer to clean up terminal
-int output_mode; 
+int output_mode;
 // whether we should reload the config or not
 int should_reload = 0;
 // whether we should only reload colors or not
@@ -148,8 +150,8 @@ static bool directory_exists(const char * path) {
 
 #endif
 
-int * separate_freq_bands(int FFTbufferSize, fftw_complex out[FFTbufferSize / 2 + 1], 
-			int bars, int lcf[200],  int hcf[200], double k[200], int channel, 
+int * separate_freq_bands(int FFTbufferSize, fftw_complex out[FFTbufferSize / 2 + 1],
+			int bars, int lcf[200],  int hcf[200], double k[200], int channel,
 			double sens, double ignore) {
 	int o,i;
 	double peak[201];
@@ -276,7 +278,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 	int sourceIsAuto = 1;
 	double smh;
 
-	double *inr, *inl;	
+	double *inr, *inl;
 	fftw_complex *outl, *outr;
 
 	struct audio_data audio;
@@ -284,10 +286,10 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 
 
 	//int maxvalue = 0;
-	
+
 	// general: console title
 	printf("%c]0;%s%c", '\033', PACKAGE, '\007');
-	
+
 	configPath[0] = '\0';
 
 	setlocale(LC_ALL, "");
@@ -354,16 +356,16 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 
 	inr = malloc(2 * (p.FFTbufferSize / 2 + 1) * sizeof(double));
 	inl = malloc(2 * (p.FFTbufferSize / 2 + 1) * sizeof(double));
-	
+
 	outl = malloc(2 * (p.FFTbufferSize / 2 + 1) * sizeof(fftw_complex));
 	outr = malloc(2 * (p.FFTbufferSize / 2 + 1) * sizeof(fftw_complex));
-	
+
 	fftw_plan pl =  fftw_plan_dft_r2c_1d(p.FFTbufferSize, inl, outl, FFTW_MEASURE);
 	fftw_plan pr =  fftw_plan_dft_r2c_1d(p.FFTbufferSize, inr, outr, FFTW_MEASURE);
-	
+
 	output_mode = p.om;
 
-	if (p.om != 4) {
+	if (p.om < 4) {
 		// Check if we're running in a tty
 		inAtty = 0;
 		if (strncmp(ttyname(0), "/dev/tty", 8) == 0 || strcmp(ttyname(0),
@@ -401,7 +403,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 		inr[i] = 0;
 		for (n = 0; n < 2; n++) {
 			outl[i][n] = 0;
-			outr[i][n] = 0;	
+			outr[i][n] = 0;
 		}
 	}
 
@@ -521,7 +523,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 				if( access( p.raw_target, F_OK ) != -1 ) {
 					//testopening in case it's a fifo
 					fptest = open(p.raw_target, O_RDONLY | O_NONBLOCK, 0644);
-	
+
 					if (fptest == -1) {
 						printf("could not open file %s for writing\n",
 							p.raw_target);
@@ -548,7 +550,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 
            		 //width must be hardcoded for raw output.
 			w = 200;
-		
+
 			if (strcmp(p.data_format, "binary") == 0) {
 				height = pow(2, p.bit_format) - 1;
 			} else {
@@ -556,6 +558,11 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 			}
 
 		}
+		if (p.om == 5) {
+      w = 200;
+			height = 16;
+      fp = open_serial_port("/dev/ttyUSB0");
+    }
 
  		//handle for user setting too many bars
 		if (p.fixedbars) {
@@ -614,7 +621,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 
 		// process: calculate cutoff frequencies
 		for (n = 0; n < bars + 1; n++) {
-			double pot = freqconst * (-1); 
+			double pot = freqconst * (-1);
 			pot +=  ((float)n + 1) / ((float)bars + 1) * freqconst;
 			fc[n] = p.highcf * pow(10, pot);
 			fre[n] = fc[n] / (audio.rate / 2);
@@ -626,7 +633,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 			lcf[n] = fre[n] * (p.FFTbufferSize /2) + 1;
 			if (n != 0) {
 				hcf[n - 1] = lcf[n] - 1;
-	
+
 				//pushing the spectrum up if the expe function gets "clumped"
 				if (lcf[n] <= lcf[n - 1])lcf[n] = lcf[n - 1] + 1;
 				hcf[n - 1] = lcf[n] - 1;
@@ -777,7 +784,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 					fl = monstercat_filter(fl, bars / 2, p.waves,
 					 	p.monstercat);
 					fr = monstercat_filter(fr, bars / 2, p.waves,
-						p.monstercat);	
+						p.monstercat);
 				} else {
 					fl = monstercat_filter(fl, bars, p.waves, p.monstercat);
 				}
@@ -785,7 +792,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 
 
 			// processing signal
-		
+
 			bool senselow = true;
 
 			for (o = 0; o < bars; o++) {
@@ -827,7 +834,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 
 					#ifdef DEBUG
 						mvprintw(o,0,"%d: f:%f->%f (%d->%d), k-value:\
-						%15e, peak:%d \n", o, fc[o], fc[o + 1], 
+						%15e, peak:%d \n", o, fc[o], fc[o + 1],
 						lcf[o], hcf[o], k[o], f[o]);
 						//if(f[o] > maxvalue) maxvalue = f[o];
 					#endif
@@ -836,7 +843,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 				// zero values causes divided by zero segfault (if not raw)
 				if (f[o] < 1) {
 					f[o] = 1;
-					if (p.om == 4) f[o] = 0;
+					if (p.om >= 4) f[o] = 0;
 				}
 
 				//autmatic sens adjustment
@@ -845,7 +852,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 						p.sens = p.sens * 0.98;
 						senselow = false;
 					}
-				}	
+				}
 			}
 
 			if (p.autosens && !silence && senselow) p.sens = p.sens * 1.001;
@@ -855,7 +862,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 				//printf("%d\n",maxvalue); //checking maxvalue 10000
 			#endif
 
-			
+
 			// output: draw processed input
 			#ifndef DEBUG
 				switch (p.om) {
@@ -878,6 +885,9 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 						rc = print_raw_out(bars, fp, p.is_bin,
 							p.bit_format, p.ascii_range, p.bar_delim,
 							 p.frame_delim,f);
+            break;
+          case 5:
+            rc = send_serial(fp, bars, f);
 						break;
 				}
 
