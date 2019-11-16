@@ -561,7 +561,7 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 		if (p.om == 5) {
       w = 200;
 			height = 16;
-      fp = open_serial_port("/dev/ttyUSB0");
+      fp = open_serial_port();
     }
 
  		//handle for user setting too many bars

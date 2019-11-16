@@ -3,6 +3,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <dirent.h>
 
 int set_interface_attribs(int fd, int speed, int parity) {
 	struct termios tty;
@@ -58,7 +59,26 @@ void set_blocking (int fd, int should_block) {
 }
 
 char serial_data[8 * 16 * 4];
-int open_serial_port(const char* portname) {
+// Find a ttyUSB? in dev
+int open_serial_port() {
+  DIR *d;
+  struct dirent *dir;
+  d = opendir("/dev");
+  char portname[20] = "/dev/";
+  if (d) {
+    while ((dir = readdir(d)) != NULL) {
+      if (strlen(dir->d_name) > 6 &&
+          dir->d_name[0] == 't' &&
+          dir->d_name[1] == 't' &&
+          dir->d_name[2] == 'y' &&
+          dir->d_name[3] == 'U' &&
+          dir->d_name[4] == 'S' &&
+          dir->d_name[5] == 'B') {
+        strcat(portname, dir->d_name);
+      }
+    }
+    closedir(d);
+  }
   int fd = open (portname, O_RDWR | O_NOCTTY | O_SYNC);
   if (fd < 0) {
     printf("error %d opening %s: %s", errno, portname, strerror (errno));
@@ -100,7 +120,7 @@ int send_serial(int fd, int bars_count, int const f[200]) {
 
   for (int y = 0; y < 64; ++y) {
     int v = f[y];
-    if (v > 15) v = 15;
+    if (v > 16) v = 16;
     if (v < 0) v = 0;
     int real_y = (int)(y / 8);
     unsigned char set = 1 << (7 - (y - real_y * 8));
@@ -123,6 +143,6 @@ int send_serial(int fd, int bars_count, int const f[200]) {
   /* return 0; */
 
 
-  write(fd, serial_data, sizeof(serial_data));
+  if (write(fd, serial_data, sizeof(serial_data)) < 0) exit(-1);
   return 0;
 }
