@@ -153,19 +153,19 @@ int send_serial(int fd, int bars_count, int const f[200]) {
       serial_data[pos] &= unset;
     }
   }
-  for (int x = 0; x < 16; ++x) {
-    for (int y = 0; y < 8; ++y) {
-      int pos = x * 8 + y;
-      if (pos < 32) pos += 3;
-      else if (pos < 64) pos += 6;
-      else if (pos < 96) pos += 9;
-      else pos += 12;
-      const unsigned char v = serial_data[pos];
-      printf(BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(v));
-    }
-    printf("\n");
-  }
-  printf("\n");
+  /* for (int x = 0; x < 16; ++x) { */
+  /*   for (int y = 0; y < 8; ++y) { */
+  /*     int pos = x * 8 + y; */
+  /*     if (pos < 32) pos += 3; */
+  /*     else if (pos < 64) pos += 6; */
+  /*     else if (pos < 96) pos += 9; */
+  /*     else pos += 12; */
+  /*     const unsigned char v = serial_data[pos]; */
+  /*     printf(BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(v)); */
+  /*   } */
+  /*   printf("\n"); */
+  /* } */
+  /* printf("\n"); */
   /* return 0; */
 
 
