@@ -58,7 +58,11 @@ void set_blocking (int fd, int should_block) {
   }
 }
 
-char serial_data[8 * 16 * 4];
+char serial_data[8 * 16 + 3 * 4];
+// AA AA 00 4 * 8 BYTE
+// AA AA 32 4 * 8 BYTE
+// AA AA 64 4 * 8 BYTE
+// AA AA 96 4 * 8 BYTE
 // Find a ttyUSB? in dev
 int open_serial_port() {
   DIR *d;
@@ -88,15 +92,22 @@ int open_serial_port() {
   set_interface_attribs (fd, B115200, 0);  // set speed to 115,200 bps, 8n1 (no parity)
   set_blocking (fd, 0);                // set no blocking
 
-  for (int x = 0; x < 16; ++x) {
-    for (int y = 0; y < 8; ++y) {
-      serial_data[(x * 8 + y) * 4] = 255;
-      serial_data[(x * 8 + y) * 4 + 1] = 255;
-      serial_data[(x * 8 + y) * 4 + 2] = x * 8 + y;
-      serial_data[(x * 8 + y) * 4 + 3] = 0;
-    }
-  }
+  memset(serial_data, 0, sizeof(serial_data));
+  serial_data[0] = 0xAA;
+  serial_data[1] = 0xAA;
+  serial_data[2] = 0;
 
+  serial_data[3 + 4 * 8] = 0xAA;
+  serial_data[3 + 4 * 8 + 1] = 0xAA;
+  serial_data[3 + 4 * 8 + 2] = 32;
+
+  serial_data[(3 + 4 * 8) * 2] = 0xAA;
+  serial_data[(3 + 4 * 8) * 2 + 1] = 0xAA;
+  serial_data[(3 + 4 * 8) * 2 + 2] = 64;
+
+  serial_data[(3 + 4 * 8) * 3] = 0xAA;
+  serial_data[(3 + 4 * 8) * 3 + 1] = 0xAA;
+  serial_data[(3 + 4 * 8) * 3 + 2] = 96;
   return fd;
 }
 
@@ -126,20 +137,35 @@ int send_serial(int fd, int bars_count, int const f[200]) {
     unsigned char set = 1 << (7 - (y - real_y * 8));
     unsigned char unset = ~set;
     for (int x = 0; x < 16 - v; ++x) {
-      serial_data[(x * 8 + real_y) * 4 + 3] &= unset;
+      int pos = x * 8 + real_y;
+      if (pos < 32) pos += 3;
+      else if (pos < 64) pos += 6;
+      else if (pos < 96) pos += 9;
+      else pos += 12;
+      serial_data[pos] |= set;
     }
     for (int x = 16 - v; x < 16; ++x) {
-      serial_data[(x * 8 + real_y) * 4 + 3] |= set;
+      int pos = x * 8 + real_y;
+      if (pos < 32) pos += 3;
+      else if (pos < 64) pos += 6;
+      else if (pos < 96) pos += 9;
+      else pos += 12;
+      serial_data[pos] &= unset;
     }
   }
-  /* for (int x = 0; x < 16; ++x) { */
-  /*   for (int y = 0; y < 8; ++y) { */
-  /*     const unsigned char v = serial_data[(x * 8 + y) * 4 + 3]; */
-  /*     printf(BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(v)); */
-  /*   } */
-  /*   printf("\n"); */
-  /* } */
-  /* printf("\n"); */
+  for (int x = 0; x < 16; ++x) {
+    for (int y = 0; y < 8; ++y) {
+      int pos = x * 8 + y;
+      if (pos < 32) pos += 3;
+      else if (pos < 64) pos += 6;
+      else if (pos < 96) pos += 9;
+      else pos += 12;
+      const unsigned char v = serial_data[pos];
+      printf(BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(v));
+    }
+    printf("\n");
+  }
+  printf("\n");
   /* return 0; */
 
 
