@@ -172,3 +172,86 @@ int send_serial(int fd, int bars_count, int const f[200]) {
   if (write(fd, serial_data, sizeof(serial_data)) < 0) exit(-1);
   return 0;
 }
+
+int send_serial2(int fd, int bars_count, int const f[200]) {
+  /* printf("%d\n", bars_count); */
+  /* for (int i = 0; i < 64; ++i) { */
+  /*   printf("%d ", f[63-i]); */
+  /* } */
+  /* printf("\n"); */
+  /* for (int i = 0; i < 64; ++i) { */
+  /*   printf("%d ", f[64+i]); */
+  /* } */
+  /* printf("\n"); */
+
+  // left
+  for (int y = 0; y < 64; ++y) {
+    int v = f[y];
+    if (v > 8) v = 8;
+    if (v < 0) v = 0;
+    int yy = 63 - y;
+    int real_y = (int)(yy / 8);
+    unsigned char set = 1 << (7 - (yy - real_y * 8));
+    unsigned char unset = ~set;
+    for (int x = 0; x < 8 - v; ++x) {
+      int pos = x * 8 + real_y;
+      if (pos < 32) pos += 3;
+      else if (pos < 64) pos += 6;
+      else if (pos < 96) pos += 9;
+      else pos += 12;
+      serial_data[pos] |= set;
+    }
+    for (int x = 8 - v; x < 8; ++x) {
+      int pos = x * 8 + real_y;
+      if (pos < 32) pos += 3;
+      else if (pos < 64) pos += 6;
+      else if (pos < 96) pos += 9;
+      else pos += 12;
+      serial_data[pos] &= unset;
+    }
+  }
+  // right
+  for (int y = 0; y < 64; ++y) {
+    int v = f[64 + y];
+    if (v > 8) v = 8;
+    if (v < 0) v = 0;
+    int real_y = (int)(y / 8);
+    unsigned char set = 1 << (7 - (y - real_y * 8));
+    unsigned char unset = ~set;
+    for (int x = 8; x < 8 + v; ++x) {
+      int pos = x * 8 + real_y;
+      if (pos < 32) pos += 3;
+      else if (pos < 64) pos += 6;
+      else if (pos < 96) pos += 9;
+      else pos += 12;
+      serial_data[pos] &= unset;
+    }
+    for (int x = 8 + v; x < 16; ++x) {
+      int pos = x * 8 + real_y;
+      if (pos < 32) pos += 3;
+      else if (pos < 64) pos += 6;
+      else if (pos < 96) pos += 9;
+      else pos += 12;
+      serial_data[pos] |= set;
+    }
+  }
+
+  /* for (int x = 0; x < 16; ++x) { */
+  /*   for (int y = 0; y < 8; ++y) { */
+  /*     int pos = x * 8 + y; */
+  /*     if (pos < 32) pos += 3; */
+  /*     else if (pos < 64) pos += 6; */
+  /*     else if (pos < 96) pos += 9; */
+  /*     else pos += 12; */
+  /*     const unsigned char v = serial_data[pos]; */
+  /*     printf(BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(v)); */
+  /*   } */
+  /*   printf("\n"); */
+  /* } */
+  /* printf("\n"); */
+  /* return 0; */
+
+
+  if (write(fd, serial_data, sizeof(serial_data)) < 0) exit(-1);
+  return 0;
+}

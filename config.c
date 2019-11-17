@@ -233,6 +233,9 @@ if (strcmp(outputMethod, "raw") == 0) {//raw:
 if (strcmp(outputMethod, "serial") == 0) {
   p->om = 5;
 }
+if (strcmp(outputMethod, "serial2") == 0) {
+  p->om = 6;
+}
 if (p->om == 0) {
 	#ifndef NCURSES
 	write_errorf(error,

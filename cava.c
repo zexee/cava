@@ -563,6 +563,11 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 			height = 16;
       fp = open_serial_port();
     }
+		if (p.om == 6) {
+      w = 400;
+			height = 8;
+      fp = open_serial_port();
+    }
 
  		//handle for user setting too many bars
 		if (p.fixedbars) {
@@ -888,6 +893,9 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
             break;
           case 5:
             rc = send_serial(fp, bars, f);
+						break;
+          case 6:
+            rc = send_serial2(fp, bars, f);
 						break;
 				}
 
