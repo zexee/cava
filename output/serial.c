@@ -170,10 +170,11 @@ void Render(const char* str, int top_offset) {
 
 void RenderDateTime(const time_t* t) {
   struct tm* ti = localtime(t);
-  char date[] = "20/04/1818:23:50";
-  sprintf(date, "%02d/%02d/%02d%02d:%02d:%02d",
-          ti->tm_year % 100, ti->tm_mon + 1, ti->tm_mday,
-          ti->tm_hour, ti->tm_min, ti->tm_sec);
+  char date[] = "06:23:5004/18 PM";
+  sprintf(date, "%02d:%02d:%02d%02d/%02d %s",
+          ti->tm_hour > 12 ? ti->tm_hour - 12 : ti->tm_hour,
+          ti->tm_min, ti->tm_sec,
+          ti->tm_mon + 1, ti->tm_mday, ti->tm_hour >= 12 ? "PM" : "AM");
   Render(date, 0);
   Render(date + 8, 8);
 }
