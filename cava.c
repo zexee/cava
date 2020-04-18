@@ -775,9 +775,18 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 				#ifdef DEBUG
 					printw("no sound detected for 3 sec, going to sleep mode\n");
 				#endif
-				//wait 1 sec, then check sound again.
-				req.tv_sec = 1;
-				req.tv_nsec = 0;
+				switch (p.om) {
+          case 5:
+            rc = send_serial(fp, bars, f);
+						break;
+          case 6:
+            rc = send_serial2(fp, bars, f);
+						break;
+				}
+
+				//wait 0.1 sec, then check sound again. Keep serial clock update.
+				req.tv_sec = 0;
+				req.tv_nsec = 100000000;
 				nanosleep (&req, NULL);
 				continue;
 			}

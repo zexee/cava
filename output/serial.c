@@ -4,6 +4,8 @@
 #include <termios.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <time.h>
+#include "font8x8/font8x8_basic.h"
 
 int set_interface_attribs(int fd, int speed, int parity) {
 	struct termios tty;
@@ -59,12 +61,27 @@ void set_blocking (int fd, int should_block) {
 }
 
 char serial_data[8 * 16 + 3 * 4];
+int row_start[16];
 // AA AA 00 4 * 8 BYTE
 // AA AA 32 4 * 8 BYTE
 // AA AA 64 4 * 8 BYTE
 // AA AA 96 4 * 8 BYTE
+
+void FlipBits(char (*font)[8], int len) {
+  for (int i = 0; i < len; ++i) {
+    for (int j = 0; j < 8; ++j) {
+      char x = font[i][j];
+      char y = '\0';
+      for (int k = 0; k < 8; ++k) {
+        y |= ((x >> k) & 0x01) << (7 - k);
+      }
+      font[i][j] = y;
+    }
+  }
+}
 // Find a ttyUSB? in dev
 int open_serial_port() {
+  FlipBits(font8x8_basic, sizeof(font8x8_basic) / sizeof(font8x8_basic[0]));
   DIR *d;
   struct dirent *dir;
   d = opendir("/dev");
@@ -96,18 +113,34 @@ int open_serial_port() {
   serial_data[0] = 0xAA;
   serial_data[1] = 0xAA;
   serial_data[2] = 0;
+  row_start[0] = 3;
+  row_start[1] = row_start[0] + 8;
+  row_start[2] = row_start[1] + 8;
+  row_start[3] = row_start[2] + 8;
 
   serial_data[3 + 4 * 8] = 0xAA;
   serial_data[3 + 4 * 8 + 1] = 0xAA;
   serial_data[3 + 4 * 8 + 2] = 32;
+  row_start[4] = row_start[3] + 8 + 3;
+  row_start[5] = row_start[4] + 8;
+  row_start[6] = row_start[5] + 8;
+  row_start[7] = row_start[6] + 8;
 
   serial_data[(3 + 4 * 8) * 2] = 0xAA;
   serial_data[(3 + 4 * 8) * 2 + 1] = 0xAA;
   serial_data[(3 + 4 * 8) * 2 + 2] = 64;
+  row_start[8] = row_start[7] + 8 + 3;
+  row_start[9] = row_start[8] + 8;
+  row_start[10] = row_start[9] + 8;
+  row_start[11] = row_start[10] + 8;
 
   serial_data[(3 + 4 * 8) * 3] = 0xAA;
   serial_data[(3 + 4 * 8) * 3 + 1] = 0xAA;
   serial_data[(3 + 4 * 8) * 3 + 2] = 96;
+  row_start[12] = row_start[11] + 8 + 3;
+  row_start[13] = row_start[12] + 8;
+  row_start[14] = row_start[13] + 8;
+  row_start[15] = row_start[14] + 8;
   return fd;
 }
 
@@ -122,6 +155,28 @@ int open_serial_port() {
   (byte & 0x02 ? '1' : '0'), \
   (byte & 0x01 ? '1' : '0')
 
+void Render(const char* str, int top_offset) {
+  int len = strlen(str);
+  if (len > 8) len = 8;
+  for (int i = 0; i < len; ++i) {
+    int x = str[i];
+    if (x >= 128) x = 0;
+    char* c = font8x8_basic[x];
+    for (int r = 0; r < 8; ++r) {
+      serial_data[row_start[r + top_offset] + i] = ~c[r];
+    }
+  }
+}
+
+void RenderDateTime(const time_t* t) {
+  struct tm* ti = localtime(t);
+  char date[] = "20/04/1818:23:50";
+  sprintf(date, "%02d/%02d/%02d%02d:%02d:%02d",
+          ti->tm_year % 100, ti->tm_mon + 1, ti->tm_mday,
+          ti->tm_hour, ti->tm_min, ti->tm_sec);
+  Render(date, 0);
+  Render(date + 8, 8);
+}
 int send_serial(int fd, int bars_count, int const f[200]) {
   /* printf("%d\n", bars_count); */
   /* for (int i = 0; i < bars_count; ++i) { */
@@ -129,8 +184,10 @@ int send_serial(int fd, int bars_count, int const f[200]) {
   /* } */
   /* printf("\n"); */
 
+  bool idle = true;
   for (int y = 0; y < 64; ++y) {
     int v = f[y];
+    idle = idle && (v == 0);
     if (v > 16) v = 16;
     if (v < 0) v = 0;
     int real_y = (int)(y / 8);
@@ -153,26 +210,28 @@ int send_serial(int fd, int bars_count, int const f[200]) {
       serial_data[pos] &= unset;
     }
   }
-  /* for (int x = 0; x < 16; ++x) { */
-  /*   for (int y = 0; y < 8; ++y) { */
-  /*     int pos = x * 8 + y; */
-  /*     if (pos < 32) pos += 3; */
-  /*     else if (pos < 64) pos += 6; */
-  /*     else if (pos < 96) pos += 9; */
-  /*     else pos += 12; */
-  /*     const unsigned char v = serial_data[pos]; */
-  /*     printf(BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(v)); */
-  /*   } */
-  /*   printf("\n"); */
-  /* } */
-  /* printf("\n"); */
-  /* return 0; */
+  // for (int x = 0; x < 16; ++x) {
+  //   for (int y = 0; y < 8; ++y) {
+  //     int pos = x * 8 + y;
+  //     if (pos < 32) pos += 3;
+  //     else if (pos < 64) pos += 6;
+  //     else if (pos < 96) pos += 9;
+  //     else pos += 12;
+  //     const unsigned char v = serial_data[pos];
+  //     printf(BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(v));
+  //   }
+  //   printf("\n");
+  // }
+  // printf("\n"); */
+  // return 0;
 
 
   if (write(fd, serial_data, sizeof(serial_data)) < 0) exit(-1);
   return 0;
 }
 
+bool last_idle = true;
+time_t idle_start_time = 0;
 int send_serial2(int fd, int bars_count, int const f[200]) {
   /* printf("%d\n", bars_count); */
   /* for (int i = 0; i < 64; ++i) { */
@@ -185,8 +244,10 @@ int send_serial2(int fd, int bars_count, int const f[200]) {
   /* printf("\n"); */
 
   // left
+  int idle = 1;
   for (int y = 0; y < 64; ++y) {
     int v = f[y];
+    idle = idle && (v == 0);
     if (v > 8) v = 8;
     if (v < 0) v = 0;
     int yy = 63 - y;
@@ -213,6 +274,7 @@ int send_serial2(int fd, int bars_count, int const f[200]) {
   // right
   for (int y = 0; y < 64; ++y) {
     int v = f[64 + y];
+    idle = idle && (v == 0);
     if (v > 8) v = 8;
     if (v < 0) v = 0;
     int real_y = (int)(y / 8);
@@ -236,6 +298,19 @@ int send_serial2(int fd, int bars_count, int const f[200]) {
     }
   }
 
+  time_t now;
+  time(&now);
+  if (idle) {
+    if (!last_idle) {
+      idle_start_time = now;
+    } else {
+      if (now >= idle_start_time + 10) {
+        RenderDateTime(&now);
+      }
+    }
+  }
+  last_idle = idle;
+  //fprintf(stderr, "%d %d %ld %ld %ld\n", idle, last_idle, idle_start_time, now, now - idle_start_time);
   /* for (int x = 0; x < 16; ++x) { */
   /*   for (int y = 0; y < 8; ++y) { */
   /*     int pos = x * 8 + y; */
