@@ -777,10 +777,10 @@ as of 0.4.0 all options are specified in config file, see in '/home/username/.co
 				#endif
 				switch (p.om) {
           case 5:
-            rc = send_serial(fp, bars, f);
+            rc = send_serial(fp, 0, f);
 						break;
           case 6:
-            rc = send_serial2(fp, bars, f);
+            rc = send_serial2(fp, 0, f);
 						break;
 				}
 

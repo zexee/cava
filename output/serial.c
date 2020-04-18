@@ -67,7 +67,7 @@ int row_start[16];
 // AA AA 64 4 * 8 BYTE
 // AA AA 96 4 * 8 BYTE
 
-void FlipBits(char (*font)[8], int len) {
+void PrepareFont(char (*font)[8], int len) {
   for (int i = 0; i < len; ++i) {
     for (int j = 0; j < 8; ++j) {
       char x = font[i][j];
@@ -75,13 +75,13 @@ void FlipBits(char (*font)[8], int len) {
       for (int k = 0; k < 8; ++k) {
         y |= ((x >> k) & 0x01) << (7 - k);
       }
-      font[i][j] = y;
+      font[i][j] = ~y;
     }
   }
 }
 // Find a ttyUSB? in dev
 int open_serial_port() {
-  FlipBits(font8x8_basic, sizeof(font8x8_basic) / sizeof(font8x8_basic[0]));
+  PrepareFont(font8x8_basic, sizeof(font8x8_basic) / sizeof(font8x8_basic[0]));
   DIR *d;
   struct dirent *dir;
   d = opendir("/dev");
@@ -156,14 +156,11 @@ int open_serial_port() {
   (byte & 0x01 ? '1' : '0')
 
 void Render(const char* str, int top_offset) {
-  int len = strlen(str);
-  if (len > 8) len = 8;
-  for (int i = 0; i < len; ++i) {
+  for (int i = 0; i < 8; ++i) {
     int x = str[i];
-    if (x >= 128) x = 0;
     char* c = font8x8_basic[x];
     for (int r = 0; r < 8; ++r) {
-      serial_data[row_start[r + top_offset] + i] = ~c[r];
+      serial_data[row_start[r + top_offset] + i] = c[r];
     }
   }
 }
@@ -171,46 +168,53 @@ void Render(const char* str, int top_offset) {
 void RenderDateTime(const time_t* t) {
   struct tm* ti = localtime(t);
   char date[] = "06:23:5004/18 PM";
-  sprintf(date, "%02d:%02d:%02d%02d/%02d %s",
-          ti->tm_hour > 12 ? ti->tm_hour - 12 : ti->tm_hour,
-          ti->tm_min, ti->tm_sec,
-          ti->tm_mon + 1, ti->tm_mday, ti->tm_hour >= 12 ? "PM" : "AM");
+  if (ti->tm_hour == 12) {
+    sprintf(date, "12:%02d:%02d%02d/%02d PM",
+            ti->tm_min, ti->tm_sec,
+            ti->tm_mon + 1, ti->tm_mday);
+  } else if (ti->tm_hour > 12) {
+    sprintf(date, "%02d:%02d:%02d%02d/%02d PM",
+            ti->tm_hour - 12, ti->tm_min, ti->tm_sec,
+            ti->tm_mon + 1, ti->tm_mday);
+  } else {
+    sprintf(date, "%02d:%02d:%02d%02d/%02d AM",
+            ti->tm_hour, ti->tm_min, ti->tm_sec,
+            ti->tm_mon + 1, ti->tm_mday);
+  }
   Render(date, 0);
   Render(date + 8, 8);
 }
 int send_serial(int fd, int bars_count, int const f[200]) {
-  /* printf("%d\n", bars_count); */
-  /* for (int i = 0; i < bars_count; ++i) { */
-  /*   printf("%d ", f[i]); */
-  /* } */
-  /* printf("\n"); */
-
-  bool idle = true;
-  for (int y = 0; y < 64; ++y) {
-    int v = f[y];
-    idle = idle && (v == 0);
-    if (v > 16) v = 16;
-    if (v < 0) v = 0;
-    int real_y = (int)(y / 8);
-    unsigned char set = 1 << (7 - (y - real_y * 8));
-    unsigned char unset = ~set;
-    for (int x = 0; x < 16 - v; ++x) {
-      int pos = x * 8 + real_y;
-      if (pos < 32) pos += 3;
-      else if (pos < 64) pos += 6;
-      else if (pos < 96) pos += 9;
-      else pos += 12;
-      serial_data[pos] |= set;
-    }
-    for (int x = 16 - v; x < 16; ++x) {
-      int pos = x * 8 + real_y;
-      if (pos < 32) pos += 3;
-      else if (pos < 64) pos += 6;
-      else if (pos < 96) pos += 9;
-      else pos += 12;
-      serial_data[pos] &= unset;
+  time_t now = time(NULL);
+  if (bars_count == 0) {
+    RenderDateTime(&now);
+  } else {
+    for (int y = 0; y < 64; ++y) {
+      int v = f[y];
+      if (v > 16) v = 16;
+      if (v < 0) v = 0;
+      int real_y = (int)(y / 8);
+      unsigned char set = 1 << (7 - (y - real_y * 8));
+      unsigned char unset = ~set;
+      for (int x = 0; x < 16 - v; ++x) {
+        int pos = x * 8 + real_y;
+        if (pos < 32) pos += 3;
+        else if (pos < 64) pos += 6;
+        else if (pos < 96) pos += 9;
+        else pos += 12;
+        serial_data[pos] |= set;
+      }
+      for (int x = 16 - v; x < 16; ++x) {
+        int pos = x * 8 + real_y;
+        if (pos < 32) pos += 3;
+        else if (pos < 64) pos += 6;
+        else if (pos < 96) pos += 9;
+        else pos += 12;
+        serial_data[pos] &= unset;
+      }
     }
   }
+
   // for (int x = 0; x < 16; ++x) {
   //   for (int y = 0; y < 8; ++y) {
   //     int pos = x * 8 + y;
@@ -231,87 +235,64 @@ int send_serial(int fd, int bars_count, int const f[200]) {
   return 0;
 }
 
-bool last_idle = true;
-time_t idle_start_time = 0;
 int send_serial2(int fd, int bars_count, int const f[200]) {
-  /* printf("%d\n", bars_count); */
-  /* for (int i = 0; i < 64; ++i) { */
-  /*   printf("%d ", f[63-i]); */
-  /* } */
-  /* printf("\n"); */
-  /* for (int i = 0; i < 64; ++i) { */
-  /*   printf("%d ", f[64+i]); */
-  /* } */
-  /* printf("\n"); */
-
-  // left
-  int idle = 1;
-  for (int y = 0; y < 64; ++y) {
-    int v = f[y];
-    idle = idle && (v == 0);
-    if (v > 8) v = 8;
-    if (v < 0) v = 0;
-    int yy = 63 - y;
-    int real_y = (int)(yy / 8);
-    unsigned char set = 1 << (7 - (yy - real_y * 8));
-    unsigned char unset = ~set;
-    for (int x = 0; x < 8 - v; ++x) {
-      int pos = x * 8 + real_y;
-      if (pos < 32) pos += 3;
-      else if (pos < 64) pos += 6;
-      else if (pos < 96) pos += 9;
-      else pos += 12;
-      serial_data[pos] |= set;
+  time_t now = time(NULL);
+  if (bars_count == 0) {
+    RenderDateTime(&now);
+  } else {
+    // left
+    for (int y = 0; y < 64; ++y) {
+      int v = f[y];
+      if (v > 8) v = 8;
+      if (v < 0) v = 0;
+      int yy = 63 - y;
+      int real_y = (int)(yy / 8);
+      unsigned char set = 1 << (7 - (yy - real_y * 8));
+      unsigned char unset = ~set;
+      for (int x = 0; x < 8 - v; ++x) {
+        int pos = x * 8 + real_y;
+        if (pos < 32) pos += 3;
+        else if (pos < 64) pos += 6;
+        else if (pos < 96) pos += 9;
+        else pos += 12;
+        serial_data[pos] |= set;
+      }
+      for (int x = 8 - v; x < 8; ++x) {
+        int pos = x * 8 + real_y;
+        if (pos < 32) pos += 3;
+        else if (pos < 64) pos += 6;
+        else if (pos < 96) pos += 9;
+        else pos += 12;
+        serial_data[pos] &= unset;
+      }
     }
-    for (int x = 8 - v; x < 8; ++x) {
-      int pos = x * 8 + real_y;
-      if (pos < 32) pos += 3;
-      else if (pos < 64) pos += 6;
-      else if (pos < 96) pos += 9;
-      else pos += 12;
-      serial_data[pos] &= unset;
-    }
-  }
-  // right
-  for (int y = 0; y < 64; ++y) {
-    int v = f[64 + y];
-    idle = idle && (v == 0);
-    if (v > 8) v = 8;
-    if (v < 0) v = 0;
-    int real_y = (int)(y / 8);
-    unsigned char set = 1 << (7 - (y - real_y * 8));
-    unsigned char unset = ~set;
-    for (int x = 8; x < 8 + v; ++x) {
-      int pos = x * 8 + real_y;
-      if (pos < 32) pos += 3;
-      else if (pos < 64) pos += 6;
-      else if (pos < 96) pos += 9;
-      else pos += 12;
-      serial_data[pos] &= unset;
-    }
-    for (int x = 8 + v; x < 16; ++x) {
-      int pos = x * 8 + real_y;
-      if (pos < 32) pos += 3;
-      else if (pos < 64) pos += 6;
-      else if (pos < 96) pos += 9;
-      else pos += 12;
-      serial_data[pos] |= set;
-    }
-  }
-
-  time_t now;
-  time(&now);
-  if (idle) {
-    if (!last_idle) {
-      idle_start_time = now;
-    } else {
-      if (now >= idle_start_time + 10) {
-        RenderDateTime(&now);
+    // right
+    for (int y = 0; y < 64; ++y) {
+      int v = f[64 + y];
+      if (v > 8) v = 8;
+      if (v < 0) v = 0;
+      int real_y = (int)(y / 8);
+      unsigned char set = 1 << (7 - (y - real_y * 8));
+      unsigned char unset = ~set;
+      for (int x = 8; x < 8 + v; ++x) {
+        int pos = x * 8 + real_y;
+        if (pos < 32) pos += 3;
+        else if (pos < 64) pos += 6;
+        else if (pos < 96) pos += 9;
+        else pos += 12;
+        serial_data[pos] &= unset;
+      }
+      for (int x = 8 + v; x < 16; ++x) {
+        int pos = x * 8 + real_y;
+        if (pos < 32) pos += 3;
+        else if (pos < 64) pos += 6;
+        else if (pos < 96) pos += 9;
+        else pos += 12;
+        serial_data[pos] |= set;
       }
     }
   }
-  last_idle = idle;
-  //fprintf(stderr, "%d %d %ld %ld %ld\n", idle, last_idle, idle_start_time, now, now - idle_start_time);
+
   /* for (int x = 0; x < 16; ++x) { */
   /*   for (int y = 0; y < 8; ++y) { */
   /*     int pos = x * 8 + y; */
@@ -326,7 +307,6 @@ int send_serial2(int fd, int bars_count, int const f[200]) {
   /* } */
   /* printf("\n"); */
   /* return 0; */
-
 
   if (write(fd, serial_data, sizeof(serial_data)) < 0) exit(-1);
   return 0;
